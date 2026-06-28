@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "i.ytimg.com" },
-      { protocol: "https", hostname: "img.youtube.com" },
+      { protocol: "https", hostname: "**.ytimg.com" },
+      { protocol: "https", hostname: "**.ggpht.com" },
     ],
   },
   async headers() {
