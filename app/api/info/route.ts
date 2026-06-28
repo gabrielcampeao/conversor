@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const yt   = await getYt();
-    const info = await yt.getBasicInfo(id, { client: "TV_EMBEDDED" });
+    const info = await yt.getBasicInfo(id, { client: "ANDROID" });
 
     const available = new Set<number>();
     for (const f of info.streaming_data?.adaptive_formats ?? []) {
