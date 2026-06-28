@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { join } from "path";
+
+export const maxDuration = 60;
 
 const exec = promisify(execFile);
-const YTDLP = process.env.YTDLP_PATH ?? "yt-dlp";
+const YTDLP = process.env.YTDLP_PATH ?? join(process.cwd(), "bin", "yt-dlp");
 
 interface YtFormat {
   height?: number;
