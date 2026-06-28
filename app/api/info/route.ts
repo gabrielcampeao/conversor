@@ -42,10 +42,8 @@ export async function GET(req: NextRequest) {
       qualities: qualities.length > 0 ? qualities : [720],
     });
   } catch (e: unknown) {
-    console.error("[info]", e instanceof Error ? e.message : e);
-    return NextResponse.json(
-      { error: "Vídeo não disponível. Verifique o link e tente novamente." },
-      { status: 500 }
-    );
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[info]", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
