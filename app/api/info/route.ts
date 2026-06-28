@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { join } from "path";
+import { ytdlpPath } from "@/app/lib/ytdlp";
 
 export const maxDuration = 60;
 
 const exec = promisify(execFile);
-const YTDLP = process.env.YTDLP_PATH ?? join(process.cwd(), "bin", "yt-dlp");
 
 interface YtFormat {
   height?: number;
@@ -32,7 +31,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { stdout } = await exec(YTDLP, ["--dump-json", "--no-playlist", url], {
+    const ytdlp = await ytdlpPath();
+    const { stdout } = await exec(ytdlp, ["--dump-json", "--no-playlist", url], {
       maxBuffer: 10 * 1024 * 1024,
     });
 
@@ -53,7 +53,9 @@ export async function GET(req: NextRequest) {
       thumbnail: (data.thumbnail ?? data.thumbnails?.[0]?.url ?? "") as string,
       qualities: qualities.length > 0 ? qualities : [720],
     });
-  } catch {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[info]", msg);
     return NextResponse.json(
       { error: "Vídeo não disponível. Verifique o link e tente novamente." },
       { status: 500 }
