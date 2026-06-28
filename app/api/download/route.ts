@@ -39,31 +39,61 @@ export async function GET(req: NextRequest) {
   const safeTitle = title.slice(0, 200).replace(/[^\w\s-]/g, "").trim() || "video";
 
   try {
-    const yt = await getYt();
+    const yt   = await getYt();
+    const info = await yt.getBasicInfo(id, { client: "ANDROID" });
 
     if (format === "mp3") {
-      const stream = await yt.download(id, {
-        type: "audio",
-        quality: "best",
-        client: "ANDROID",
-      });
+      let audioUrl: string | undefined;
+      try {
+        const fmt = info.chooseFormat({ type: "audio", quality: "best" });
+        audioUrl = fmt.url;
+      } catch {
+        audioUrl = undefined;
+      }
+
+      if (!audioUrl) {
+        const stream = await yt.download(id, { type: "audio", quality: "best", client: "ANDROID" });
+        const ff = spawn(FFMPEG, [
+          "-hide_banner", "-loglevel", "error",
+          "-i", "pipe:0", "-vn", "-ab", `${bitrate}k`, "-f", "mp3", "pipe:1",
+        ]);
+        Readable.fromWeb(stream as Parameters<typeof Readable.fromWeb>[0]).pipe(ff.stdin);
+        ff.stderr.on("data", () => {});
+        const readable = new ReadableStream<Uint8Array>({
+          start(c) {
+            ff.stdout.on("data", (d: Buffer) => c.enqueue(new Uint8Array(d)));
+            ff.stdout.on("end", () => c.close());
+            ff.stdout.on("error", (e) => c.error(e));
+            ff.on("error", (e) => c.error(e));
+          },
+          cancel() { ff.kill("SIGTERM"); },
+        });
+        return new Response(readable, {
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Content-Disposition": `attachment; filename="${safeTitle}.mp3"`,
+            "Cache-Control": "no-cache",
+          },
+        });
+      }
+
+      const ytRes = await fetch(audioUrl);
+      if (!ytRes.ok) throw new Error(`CDN audio error: ${ytRes.status}`);
 
       const ff = spawn(FFMPEG, [
         "-hide_banner", "-loglevel", "error",
-        "-i", "pipe:0",
-        "-vn", "-ab", `${bitrate}k`,
-        "-f", "mp3", "pipe:1",
+        "-i", "pipe:0", "-vn", "-ab", `${bitrate}k`, "-f", "mp3", "pipe:1",
       ]);
 
-      Readable.fromWeb(stream as Parameters<typeof Readable.fromWeb>[0]).pipe(ff.stdin);
+      Readable.fromWeb(ytRes.body as Parameters<typeof Readable.fromWeb>[0]).pipe(ff.stdin);
       ff.stderr.on("data", () => {});
 
       const readable = new ReadableStream<Uint8Array>({
-        start(controller) {
-          ff.stdout.on("data", (c: Buffer) => controller.enqueue(new Uint8Array(c)));
-          ff.stdout.on("end", () => controller.close());
-          ff.stdout.on("error", (e) => controller.error(e));
-          ff.on("error", (e) => controller.error(e));
+        start(c) {
+          ff.stdout.on("data", (d: Buffer) => c.enqueue(new Uint8Array(d)));
+          ff.stdout.on("end", () => c.close());
+          ff.stdout.on("error", (e) => c.error(e));
+          ff.on("error", (e) => c.error(e));
         },
         cancel() { ff.kill("SIGTERM"); },
       });
@@ -77,14 +107,36 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const stream = await yt.download(id, {
-      type: "video+audio",
-      quality: `${quality}p`,
-      format: "mp4",
-      client: "ANDROID",
-    });
+    let videoUrl: string | undefined;
+    try {
+      const fmt = info.chooseFormat({ type: "video+audio", quality: `${quality}p`, format: "mp4" });
+      videoUrl = fmt.url;
+    } catch {
+      try {
+        const fmt = info.chooseFormat({ type: "video+audio", quality: "best", format: "mp4" });
+        videoUrl = fmt.url;
+      } catch {
+        videoUrl = undefined;
+      }
+    }
 
-    return new Response(stream as ReadableStream<Uint8Array>, {
+    if (!videoUrl) {
+      const stream = await yt.download(id, {
+        type: "video+audio", quality: `${quality}p`, format: "mp4", client: "ANDROID",
+      });
+      return new Response(stream as ReadableStream<Uint8Array>, {
+        headers: {
+          "Content-Type": "video/mp4",
+          "Content-Disposition": `attachment; filename="${safeTitle}.mp4"`,
+          "Cache-Control": "no-cache",
+        },
+      });
+    }
+
+    const ytRes = await fetch(videoUrl);
+    if (!ytRes.ok) throw new Error(`CDN video error: ${ytRes.status}`);
+
+    return new Response(ytRes.body, {
       headers: {
         "Content-Type": "video/mp4",
         "Content-Disposition": `attachment; filename="${safeTitle}.mp4"`,
