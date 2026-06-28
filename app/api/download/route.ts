@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { spawn } from "child_process";
 import { Readable } from "stream";
 import ffmpegStatic from "ffmpeg-static";
-import { getYt, parseVideoId } from "@/app/lib/youtube";
+import { getYt, parseVideoId, isYouTubeUrl } from "@/app/lib/youtube";
 
 export const maxDuration = 60;
 
@@ -14,16 +14,7 @@ const ALLOWED_BITRATES  = [64, 96, 128, 256, 320];
 
 type Format = typeof ALLOWED_FORMATS[number];
 
-function isYouTubeUrl(raw: string): boolean {
-  try {
-    const { hostname } = new URL(raw);
-    return /^(www\.|m\.|music\.)?youtube\.com$|^youtu\.be$/.test(hostname);
-  } catch {
-    return false;
-  }
-}
-
-function err(msg: string, status = 500) {
+function fail(msg: string, status = 500) {
   return new Response(JSON.stringify({ error: msg }), {
     status,
     headers: { "Content-Type": "application/json" },
@@ -37,19 +28,18 @@ export async function GET(req: NextRequest) {
   const quality = parseInt(req.nextUrl.searchParams.get("quality") ?? "720");
   const bitrate = parseInt(req.nextUrl.searchParams.get("bitrate") ?? "320");
 
-  if (!url || !isYouTubeUrl(url))         return err("URL inválida.", 400);
-  if (!ALLOWED_FORMATS.includes(format as Format)) return err("Formato inválido.", 400);
-  if (!ALLOWED_QUALITIES.includes(quality))        return err("Qualidade inválida.", 400);
-  if (!ALLOWED_BITRATES.includes(bitrate))         return err("Bitrate inválido.", 400);
+  if (!url || url.length > 200 || !isYouTubeUrl(url)) return fail("URL inválida.", 400);
+  if (!ALLOWED_FORMATS.includes(format as Format))     return fail("Formato inválido.", 400);
+  if (!ALLOWED_QUALITIES.includes(quality))            return fail("Qualidade inválida.", 400);
+  if (!ALLOWED_BITRATES.includes(bitrate))             return fail("Bitrate inválido.", 400);
 
   const id = parseVideoId(url);
-  if (!id) return err("ID do vídeo não encontrado.", 400);
+  if (!id) return fail("ID do vídeo não encontrado.", 400);
 
-  const safeTitle = title.replace(/[^\w\s\-]/g, "").trim() || "video";
+  const safeTitle = title.slice(0, 200).replace(/[^\w\s-]/g, "").trim() || "video";
 
   try {
-    const yt   = await getYt();
-    const info = await yt.getBasicInfo(id, "TV_EMBEDDED");
+    const yt = await getYt();
 
     if (format === "mp3") {
       const stream = await yt.download(id, {
@@ -87,6 +77,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const info         = await yt.getBasicInfo(id, "TV_EMBEDDED");
     const qualityLabel = `${quality}p` as Parameters<typeof info.chooseFormat>[0]["quality"];
 
     const stream = await yt.download(id, {
@@ -105,6 +96,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (e: unknown) {
     console.error("[download]", e instanceof Error ? e.message : e);
-    return err("Erro ao processar o vídeo. Tente novamente.");
+    return fail("Erro ao processar o vídeo. Tente novamente.");
   }
 }
