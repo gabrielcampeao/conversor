@@ -4,9 +4,10 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 
 const DOWNLOAD_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
-const TMP_BIN = "/tmp/yt-dlp";
+const TMP_BIN     = "/tmp/yt-dlp";
+const COOKIES_PATH = "/tmp/yt-cookies.txt";
 
-let cached: string | null = null;
+let cachedBin: string | null = null;
 
 async function download(dest: string): Promise<void> {
   const res = await fetch(DOWNLOAD_URL, { redirect: "follow" });
@@ -17,25 +18,25 @@ async function download(dest: string): Promise<void> {
 }
 
 export async function ytdlpPath(): Promise<string> {
-  if (cached) return cached;
+  if (cachedBin) return cachedBin;
 
   if (process.env.YTDLP_PATH) {
-    cached = process.env.YTDLP_PATH;
-    return cached;
+    cachedBin = process.env.YTDLP_PATH;
+    return cachedBin;
   }
 
   const bundled = join(process.cwd(), "bin", "yt-dlp");
   if (existsSync(bundled)) {
-    cached = bundled;
-    return cached;
+    cachedBin = bundled;
+    return cachedBin;
   }
 
   if (!existsSync(TMP_BIN)) {
     await download(TMP_BIN);
   }
 
-  cached = TMP_BIN;
-  return cached;
+  cachedBin = TMP_BIN;
+  return cachedBin;
 }
 
 export async function ytdlpVersion(): Promise<string> {
@@ -45,9 +46,22 @@ export async function ytdlpVersion(): Promise<string> {
   return stdout.trim();
 }
 
-// Flags que contornam bot detection e JS runtime no Vercel/AWS
-export const YTDLP_FLAGS = [
-  "--extractor-args", "youtube:player_client=android,ios,web_embedded",
-  "--js-runtimes", "nodejs",
-  "--no-warnings",
-];
+function cookieArgs(): string[] {
+  const cookies = process.env.YOUTUBE_COOKIES;
+  if (!cookies) return [];
+  if (!existsSync(COOKIES_PATH)) {
+    writeFileSync(COOKIES_PATH, cookies, "utf8");
+  }
+  return ["--cookies", COOKIES_PATH];
+}
+
+export function ytdlpArgs(): string[] {
+  return [
+    // usa o próprio node do Lambda como runtime JS (resolve o "No JS runtime" warning)
+    "--js-runtimes", `nodejs:${process.execPath}`,
+    // clientes mobile têm menos restrições de bot que o cliente web
+    "--extractor-args", "youtube:player_client=android,ios,mweb",
+    "--no-warnings",
+    ...cookieArgs(),
+  ];
+}
