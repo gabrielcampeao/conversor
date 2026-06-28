@@ -6,7 +6,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import ffmpegStatic from "ffmpeg-static";
-import { ytdlpPath } from "@/app/lib/ytdlp";
+import { ytdlpPath, YTDLP_FLAGS } from "@/app/lib/ytdlp";
 
 export const maxDuration = 60;
 
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   }
 
   function ytStream(args: string[]): ReadableStream<Uint8Array> {
-    const proc = spawn(YTDLP, args);
+    const proc = spawn(YTDLP, [...YTDLP_FLAGS, ...args]);
     proc.stderr.on("data", () => {});
     return new ReadableStream<Uint8Array>({
       start(controller) {
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (format === "mp3") {
-    const yt = spawn(YTDLP, ["-f", "bestaudio", "--no-playlist", "-o", "-", url]);
+    const yt = spawn(YTDLP, [...YTDLP_FLAGS, "-f", "bestaudio", "--no-playlist", "-o", "-", url]);
     const ff = spawn(FFMPEG, [
       "-hide_banner", "-loglevel", "error",
       "-i", "pipe:0",
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
       `/bestvideo[height<=${quality}]+bestaudio` +
       `/best[height<=${quality}]`;
 
-    await execAsync(YTDLP, ["-f", fmt, "--merge-output-format", "mp4", "--no-playlist", "-o", tmpPath, url], {
+    await execAsync(YTDLP, [...YTDLP_FLAGS, "-f", fmt, "--merge-output-format", "mp4", "--no-playlist", "-o", tmpPath, url], {
       maxBuffer: 2 * 1024 * 1024,
     });
 

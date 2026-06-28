@@ -44,3 +44,10 @@ export async function ytdlpVersion(): Promise<string> {
   const { stdout } = await exec(bin, ["--version"]);
   return stdout.trim();
 }
+
+// Flags que contornam bot detection e JS runtime no Vercel/AWS
+export const YTDLP_FLAGS = [
+  "--extractor-args", "youtube:player_client=android,ios,web_embedded",
+  "--js-runtimes", "nodejs",
+  "--no-warnings",
+];
