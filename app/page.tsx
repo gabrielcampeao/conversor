@@ -66,20 +66,34 @@ export default function Home() {
     }
   }
 
-  function handleDownload() {
+  async function handleDownload() {
     if (!videoInfo || downloading) return;
     setDownloading(true);
+    setError("");
     const params = new URLSearchParams({
       url, title: videoInfo.title, format,
       quality: String(quality), bitrate: String(bitrate),
     });
-    const a = document.createElement("a");
-    a.href = `/api/download?${params}`;
-    a.download = `${videoInfo.title}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => setDownloading(false), 4000);
+    try {
+      const res = await fetch(`/api/download?${params}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erro ao baixar");
+      }
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = `${videoInfo.title}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(href), 100);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erro ao baixar");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
