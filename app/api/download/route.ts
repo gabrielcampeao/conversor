@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       const stream = await yt.download(id, {
         type: "audio",
         quality: "best",
-        client: "TV_EMBEDDED",
+        client: "ANDROID",
       });
 
       const ff = spawn(FFMPEG, [
@@ -77,14 +77,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const info         = await yt.getBasicInfo(id, { client: "TV_EMBEDDED" });
-    const qualityLabel = `${quality}p` as Parameters<typeof info.chooseFormat>[0]["quality"];
-
     const stream = await yt.download(id, {
       type: "video+audio",
-      quality: qualityLabel,
+      quality: `${quality}p`,
       format: "mp4",
-      client: "TV_EMBEDDED",
+      client: "ANDROID",
     });
 
     return new Response(stream as ReadableStream<Uint8Array>, {
