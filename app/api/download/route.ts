@@ -5,12 +5,17 @@ import { createReadStream, unlink, stat } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
+import ffmpegStatic from "ffmpeg-static";
+
+export const maxDuration = 60;
 
 const execAsync = promisify(execFile);
 const statAsync = promisify(stat);
-const YTDLP = process.env.YTDLP_PATH ?? "yt-dlp";
 
-const ALLOWED_FORMATS  = ["mp4", "mp3"] as const;
+const YTDLP  = process.env.YTDLP_PATH ?? join(process.cwd(), "bin", "yt-dlp");
+const FFMPEG = ffmpegStatic ?? "ffmpeg";
+
+const ALLOWED_FORMATS   = ["mp4", "mp3"] as const;
 const ALLOWED_QUALITIES = [360, 480, 720, 1080, 1440, 2160];
 const ALLOWED_BITRATES  = [64, 96, 128, 256, 320];
 
@@ -69,7 +74,7 @@ export async function GET(req: NextRequest) {
 
   if (format === "mp3") {
     const yt = spawn(YTDLP, ["-f", "bestaudio", "--no-playlist", "-o", "-", url]);
-    const ff = spawn("ffmpeg", [
+    const ff = spawn(FFMPEG, [
       "-hide_banner", "-loglevel", "error",
       "-i", "pipe:0",
       "-vn", "-ab", `${bitrate}k`,
