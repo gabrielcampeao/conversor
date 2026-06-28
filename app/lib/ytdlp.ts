@@ -1,12 +1,20 @@
-import { existsSync, chmodSync, createWriteStream } from "fs";
+import { existsSync, chmodSync, writeFileSync } from "fs";
 import { join } from "path";
-import { pipeline } from "stream/promises";
-import { Readable } from "stream";
+import { execFile } from "child_process";
+import { promisify } from "util";
 
-const URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
-const TMP  = "/tmp/yt-dlp";
+const DOWNLOAD_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux";
+const TMP_BIN = "/tmp/yt-dlp";
 
 let cached: string | null = null;
+
+async function download(dest: string): Promise<void> {
+  const res = await fetch(DOWNLOAD_URL, { redirect: "follow" });
+  if (!res.ok) throw new Error(`yt-dlp download HTTP ${res.status}`);
+  const buf = await res.arrayBuffer();
+  writeFileSync(dest, Buffer.from(buf));
+  chmodSync(dest, 0o755);
+}
 
 export async function ytdlpPath(): Promise<string> {
   if (cached) return cached;
@@ -22,15 +30,17 @@ export async function ytdlpPath(): Promise<string> {
     return cached;
   }
 
-  if (existsSync(TMP)) {
-    cached = TMP;
-    return cached;
+  if (!existsSync(TMP_BIN)) {
+    await download(TMP_BIN);
   }
 
-  const res = await fetch(URL, { redirect: "follow" });
-  if (!res.ok) throw new Error(`yt-dlp download failed: HTTP ${res.status}`);
-  await pipeline(Readable.fromWeb(res.body as import("stream/web").ReadableStream), createWriteStream(TMP));
-  chmodSync(TMP, 0o755);
-  cached = TMP;
+  cached = TMP_BIN;
   return cached;
+}
+
+export async function ytdlpVersion(): Promise<string> {
+  const bin = await ytdlpPath();
+  const exec = promisify(execFile);
+  const { stdout } = await exec(bin, ["--version"]);
+  return stdout.trim();
 }
