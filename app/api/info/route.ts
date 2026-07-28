@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { ytdlpPath } from "@/app/lib/ytdlp";
+import { ytdlpPath, YTDLP_FLAGS } from "@/app/lib/ytdlp";
 
 export const maxDuration = 60;
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const ytdlp = await ytdlpPath();
-    const { stdout } = await exec(ytdlp, ["--dump-json", "--no-playlist", url], {
+    const { stdout } = await exec(ytdlp, ["--dump-json", "--no-playlist", ...YTDLP_FLAGS, url], {
       maxBuffer: 10 * 1024 * 1024,
     });
 
