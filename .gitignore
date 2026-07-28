@@ -36,11 +36,7 @@ yarn-error.log*
 # vercel
 .vercel
 
-# claude code session data
 .claude/
-
-# downloaded binaries (baixados automaticamente no build)
-/bin/yt-dlp
 
 # typescript
 *.tsbuildinfo
