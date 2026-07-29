@@ -6,13 +6,12 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import ffmpegStatic from "ffmpeg-static";
+import { ytdlpPath } from "@/app/lib/ytdlp";
 
 export const maxDuration = 60;
 
 const execAsync = promisify(execFile);
 const statAsync = promisify(stat);
-
-const YTDLP  = process.env.YTDLP_PATH ?? join(process.cwd(), "bin", "yt-dlp");
 const FFMPEG = ffmpegStatic ?? "ffmpeg";
 
 const ALLOWED_FORMATS   = ["mp4", "mp3"] as const;
@@ -37,20 +36,6 @@ function errResponse(msg: string, status = 500) {
   });
 }
 
-function ytStream(args: string[]): ReadableStream<Uint8Array> {
-  const proc = spawn(YTDLP, args);
-  proc.stderr.on("data", () => {});
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      proc.stdout.on("data", (c: Buffer) => controller.enqueue(new Uint8Array(c)));
-      proc.stdout.on("end", () => controller.close());
-      proc.stdout.on("error", (e) => controller.error(e));
-      proc.on("error", (e) => controller.error(e));
-    },
-    cancel() { proc.kill("SIGTERM"); },
-  });
-}
-
 export async function GET(req: NextRequest) {
   const url     = req.nextUrl.searchParams.get("url");
   const title   = req.nextUrl.searchParams.get("title") ?? "video";
@@ -71,6 +56,28 @@ export async function GET(req: NextRequest) {
     return errResponse("Bitrate inválido.", 400);
 
   const safeTitle = title.replace(/[^\w\s\-]/g, "").trim() || "video";
+
+  let YTDLP: string;
+  try {
+    YTDLP = await ytdlpPath();
+  } catch (e) {
+    console.error("[download] ytdlp resolve failed:", e);
+    return errResponse("Serviço temporariamente indisponível.", 503);
+  }
+
+  function ytStream(args: string[]): ReadableStream<Uint8Array> {
+    const proc = spawn(YTDLP, args);
+    proc.stderr.on("data", () => {});
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        proc.stdout.on("data", (c: Buffer) => controller.enqueue(new Uint8Array(c)));
+        proc.stdout.on("end", () => controller.close());
+        proc.stdout.on("error", (e) => controller.error(e));
+        proc.on("error", (e) => controller.error(e));
+      },
+      cancel() { proc.kill("SIGTERM"); },
+    });
+  }
 
   if (format === "mp3") {
     const yt = spawn(YTDLP, ["-f", "bestaudio", "--no-playlist", "-o", "-", url]);
