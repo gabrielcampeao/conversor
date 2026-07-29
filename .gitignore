@@ -39,6 +39,9 @@ yarn-error.log*
 # claude code session data
 .claude/
 
+# downloaded binaries (baixados automaticamente no build)
+/bin/yt-dlp
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
