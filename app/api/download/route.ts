@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (e: unknown) {
-    console.error("[download]", e instanceof Error ? e.message : e);
-    return fail("Erro ao processar o vídeo. Tente novamente.");
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[download]", msg);
+    return fail(msg);
   }
 }
