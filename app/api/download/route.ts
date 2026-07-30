@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const info         = await yt.getBasicInfo(id, "TV_EMBEDDED");
+    const info         = await yt.getBasicInfo(id, { client: "TV_EMBEDDED" });
     const qualityLabel = `${quality}p` as Parameters<typeof info.chooseFormat>[0]["quality"];
 
     const stream = await yt.download(id, {
