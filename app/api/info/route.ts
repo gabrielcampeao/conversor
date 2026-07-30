@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getYt, parseVideoId } from "@/app/lib/youtube";
+import { getYt, parseVideoId, isYouTubeUrl, isSafeThumbnail } from "@/app/lib/youtube";
 
 export const maxDuration = 60;
 
 const STANDARD_HEIGHTS = [360, 480, 720, 1080, 1440, 2160];
 
-function isYouTubeUrl(raw: string): boolean {
-  try {
-    const { hostname } = new URL(raw);
-    return /^(www\.|m\.|music\.)?youtube\.com$|^youtu\.be$/.test(hostname);
-  } catch {
-    return false;
-  }
-}
-
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
 
-  if (!url || !isYouTubeUrl(url)) {
+  if (!url || url.length > 200 || !isYouTubeUrl(url)) {
     return NextResponse.json({ error: "URL inválida. Cole um link do YouTube." }, { status: 400 });
   }
 
@@ -42,9 +33,12 @@ export async function GET(req: NextRequest) {
       [...available].some((fh) => fh >= h - 20 && fh <= h + 20)
     );
 
+    const rawThumb = info.basic_info.thumbnail?.[0]?.url ?? "";
+    const thumbnail = isSafeThumbnail(rawThumb) ? rawThumb : "";
+
     return NextResponse.json({
       title:     info.basic_info.title ?? "",
-      thumbnail: info.basic_info.thumbnail?.[0]?.url ?? "",
+      thumbnail,
       qualities: qualities.length > 0 ? qualities : [720],
     });
   } catch (e: unknown) {

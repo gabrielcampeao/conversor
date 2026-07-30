@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 interface VideoInfo {
   title: string;
@@ -161,8 +162,13 @@ export default function Home() {
           <div className="flex flex-col rounded-xl overflow-hidden border border-neutral-200 dark:border-[#232323]">
 
             {videoInfo.thumbnail && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={videoInfo.thumbnail} alt="" className="w-full object-cover max-h-40 sm:max-h-52" />
+              <Image
+                src={videoInfo.thumbnail}
+                alt=""
+                width={1280}
+                height={720}
+                className="w-full object-cover max-h-40 sm:max-h-52"
+              />
             )}
 
             <div className="flex flex-col gap-3 sm:gap-4 p-3 sm:p-4 md:p-5 bg-neutral-50 dark:bg-[#1a1a1a]">
