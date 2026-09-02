@@ -12,13 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 ENV YTDLP_PATH=/usr/local/bin/yt-dlp
-ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY . .
 RUN npm run build
+RUN npm prune --omit=dev
+
+ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
