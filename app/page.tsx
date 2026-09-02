@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 
 interface VideoInfo {
@@ -26,7 +26,9 @@ function chip(active: boolean) {
 }
 
 export default function Home() {
-  const [dark, setDark]               = useState(true);
+  const [dark, setDark]               = useState(
+    () => typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+  );
   const [url, setUrl]                 = useState("");
   const [loading, setLoading]         = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -35,10 +37,6 @@ export default function Home() {
   const [format, setFormat]           = useState<"mp4" | "mp3">("mp4");
   const [quality, setQuality]         = useState(720);
   const [bitrate, setBitrate]         = useState(320);
-
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
 
   function toggleDark() {
     const isDark = document.documentElement.classList.toggle("dark");
