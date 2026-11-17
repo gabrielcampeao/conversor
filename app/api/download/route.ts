@@ -92,10 +92,19 @@ export async function GET(req: NextRequest) {
 
     const readable = new ReadableStream<Uint8Array>({
       start(controller) {
+        let closed = false;
+        const fail = (e: Error) => {
+          if (closed) return;
+          closed = true;
+          controller.error(e);
+          yt.kill("SIGTERM");
+          ff.kill("SIGTERM");
+        };
         ff.stdout.on("data", (c: Buffer) => controller.enqueue(new Uint8Array(c)));
-        ff.stdout.on("end", () => controller.close());
-        ff.stdout.on("error", (e) => controller.error(e));
-        ff.on("error", (e) => controller.error(e));
+        ff.stdout.on("end", () => { closed = true; controller.close(); });
+        ff.stdout.on("error", fail);
+        ff.on("error", fail);
+        yt.on("error", fail);
       },
       cancel() { yt.kill("SIGTERM"); ff.kill("SIGTERM"); },
     });
